@@ -18,6 +18,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+
+        // Migrate from V1 if needed
+        if !UserDefaults.standard.bool(forKey: "didMigrateV2") {
+            let legacyProvider = AgentProvider.current // reads old global "selectedProvider"
+            AgentProvider.setProvider(legacyProvider, forCharacter: "bruce")
+            AgentProvider.setProvider(legacyProvider, forCharacter: "jazz")
+            AgentProvider.setProvider(.claude, forCharacter: "hilda")
+            AutomationProfile.current = .safe
+            UserDefaults.standard.set(true, forKey: "didMigrateV2")
+
+            // Show one-time notice after a delay so the app is visible
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                let alert = NSAlert()
+                alert.messageText = "Security Defaults Updated"
+                alert.informativeText = "Agents now start in Safe mode by default. You can change this under Security in the menu bar."
+                alert.alertStyle = .informational
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
+        }
+
         controller = LilAgentsController()
         controller?.start()
         setupMenuBar()
