@@ -19,6 +19,14 @@ class CopilotSession: AgentSession {
     var onTurnComplete: (() -> Void)?
     var onProcessExit: (() -> Void)?
 
+    private let systemPrompt: String?
+    private let automationProfile: AutomationProfile
+
+    init(systemPrompt: String? = nil, automationProfile: AutomationProfile = .safe) {
+        self.systemPrompt = systemPrompt
+        self.automationProfile = automationProfile
+    }
+
     var history: [AgentMessage] = []
 
     // MARK: - Lifecycle
@@ -59,7 +67,14 @@ class CopilotSession: AgentSession {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: binaryPath)
 
-        var args = ["-p", message]
+        let effectiveMessage: String
+        if isFirstTurn, let prompt = systemPrompt {
+            effectiveMessage = "\(prompt)\n\n\(message)"
+        } else {
+            effectiveMessage = message
+        }
+
+        var args = ["-p", effectiveMessage]
         if !isFirstTurn {
             args.insert("--continue", at: 0)
         }
@@ -68,7 +83,9 @@ class CopilotSession: AgentSession {
         } else {
             args.append("-s")
         }
-        args.append("--allow-all")
+        if automationProfile == .unattended {
+            args.append("--allow-all")
+        }
         proc.arguments = args
 
         proc.currentDirectoryURL = FileManager.default.homeDirectoryForCurrentUser

@@ -49,12 +49,21 @@ enum AgentProvider: String, CaseIterable {
         }
     }
 
-    func createSession() -> any AgentSession {
+    func createSession(systemPrompt: String? = nil, automationProfile: AutomationProfile = .current) -> any AgentSession {
         switch self {
-        case .claude:  return ClaudeSession()
-        case .codex:   return CodexSession()
-        case .copilot: return CopilotSession()
+        case .claude:  return ClaudeSession(systemPrompt: systemPrompt, automationProfile: automationProfile)
+        case .codex:   return CodexSession(systemPrompt: systemPrompt, automationProfile: automationProfile)
+        case .copilot: return CopilotSession(systemPrompt: systemPrompt, automationProfile: automationProfile)
         }
+    }
+
+    static func provider(forCharacter id: String) -> AgentProvider {
+        let raw = UserDefaults.standard.string(forKey: "agent_\(id)") ?? "claude"
+        return AgentProvider(rawValue: raw) ?? .claude
+    }
+
+    static func setProvider(_ provider: AgentProvider, forCharacter id: String) {
+        UserDefaults.standard.set(provider.rawValue, forKey: "agent_\(id)")
     }
 }
 

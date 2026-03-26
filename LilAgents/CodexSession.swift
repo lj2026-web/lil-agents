@@ -18,6 +18,14 @@ class CodexSession: AgentSession {
     var onTurnComplete: (() -> Void)?
     var onProcessExit: (() -> Void)?
 
+    private let systemPrompt: String?
+    private let automationProfile: AutomationProfile
+
+    init(systemPrompt: String? = nil, automationProfile: AutomationProfile = .safe) {
+        self.systemPrompt = systemPrompt
+        self.automationProfile = automationProfile
+    }
+
     var history: [AgentMessage] = []
 
     // MARK: - Lifecycle
@@ -57,11 +65,28 @@ class CodexSession: AgentSession {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: binaryPath)
 
-        if isFirstTurn {
-            proc.arguments = ["exec", "--json", "--full-auto", "--skip-git-repo-check", message]
+        let effectiveMessage: String
+        if isFirstTurn, let prompt = systemPrompt {
+            effectiveMessage = "\(prompt)\n\n\(message)"
         } else {
-            proc.arguments = ["exec", "resume", "--last", "--json", "--full-auto", "--skip-git-repo-check", message]
+            effectiveMessage = message
         }
+
+        var baseArgs = ["exec"]
+        if !isFirstTurn {
+            baseArgs.append(contentsOf: ["resume", "--last"])
+        }
+        baseArgs.append(contentsOf: ["--json", "--skip-git-repo-check"])
+        switch automationProfile {
+        case .unattended:
+            baseArgs.append("--full-auto")
+        case .balanced:
+            baseArgs.append("--auto-edit")
+        case .safe:
+            break
+        }
+        baseArgs.append(effectiveMessage)
+        proc.arguments = baseArgs
 
         proc.currentDirectoryURL = FileManager.default.homeDirectoryForCurrentUser
         proc.environment = ShellEnvironment.processEnvironment(extraPaths: [

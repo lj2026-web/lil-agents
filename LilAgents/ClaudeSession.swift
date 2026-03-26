@@ -18,6 +18,14 @@ class ClaudeSession: AgentSession {
     var onTurnComplete: (() -> Void)?
     var onProcessExit: (() -> Void)?
 
+    private let systemPrompt: String?
+    private let automationProfile: AutomationProfile
+
+    init(systemPrompt: String? = nil, automationProfile: AutomationProfile = .safe) {
+        self.systemPrompt = systemPrompt
+        self.automationProfile = automationProfile
+    }
+
     var history: [AgentMessage] = []
 
     // MARK: - Process Lifecycle
@@ -49,13 +57,19 @@ class ClaudeSession: AgentSession {
     private func launchProcess(binaryPath: String) {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: binaryPath)
-        proc.arguments = [
+        var args = [
             "-p",
             "--output-format", "stream-json",
             "--input-format", "stream-json",
-            "--verbose",
-            "--dangerously-skip-permissions"
+            "--verbose"
         ]
+        if automationProfile == .unattended {
+            args.append("--dangerously-skip-permissions")
+        }
+        if let prompt = systemPrompt {
+            args.append(contentsOf: ["--system-prompt", prompt])
+        }
+        proc.arguments = args
         proc.currentDirectoryURL = FileManager.default.homeDirectoryForCurrentUser
         proc.environment = ShellEnvironment.processEnvironment()
 
