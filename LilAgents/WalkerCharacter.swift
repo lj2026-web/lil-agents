@@ -2,7 +2,9 @@ import AVFoundation
 import AppKit
 
 class WalkerCharacter {
-    let videoName: String
+    let config: CharacterConfig
+    var runtimeState: CharacterRuntimeState
+
     var window: NSWindow!
     var playerLayer: AVPlayerLayer!
     var queuePlayer: AVQueuePlayer!
@@ -13,16 +15,16 @@ class WalkerCharacter {
     let displayHeight: CGFloat = 200
     var displayWidth: CGFloat { displayHeight * (videoWidth / videoHeight) }
 
-    // Walk timing (per-character, from frame analysis)
-    let videoDuration: CFTimeInterval = 10.0
-    var accelStart: CFTimeInterval = 3.0
-    var fullSpeedStart: CFTimeInterval = 3.75
-    var decelStart: CFTimeInterval = 7.5
-    var walkStop: CFTimeInterval = 8.25
-    var walkAmountRange: ClosedRange<CGFloat> = 0.25...0.5
-    var yOffset: CGFloat = 0
-    var flipXOffset: CGFloat = 0
-    var characterColor: NSColor = .gray
+    // Walk timing derived from config
+    var videoDuration: CFTimeInterval { config.walkTiming.videoDuration }
+    var accelStart: CFTimeInterval { config.walkTiming.accelStart }
+    var fullSpeedStart: CFTimeInterval { config.walkTiming.fullSpeedStart }
+    var decelStart: CFTimeInterval { config.walkTiming.decelStart }
+    var walkStop: CFTimeInterval { config.walkTiming.walkStop }
+    var walkAmountRange: ClosedRange<CGFloat> { config.walkAmountRange }
+    var yOffset: CGFloat { config.yOffset }
+    var flipXOffset: CGFloat { config.flipXOffset }
+    var characterColor: NSColor { config.characterColor }
 
     // Walk state
     var playCount = 0
@@ -35,7 +37,6 @@ class WalkerCharacter {
     var walkStartPos: CGFloat = 0.0
     var walkEndPos: CGFloat = 0.0
     var currentTravelDistance: CGFloat = 500.0
-    // Walk endpoints stored in pixels for consistent speed across screen switches
     var walkStartPixel: CGFloat = 0.0
     var walkEndPixel: CGFloat = 0.0
 
@@ -55,16 +56,23 @@ class WalkerCharacter {
     var isAgentBusy: Bool { session?.isBusy ?? false }
     var thinkingBubbleWindow: NSWindow?
 
-    init(videoName: String) {
-        self.videoName = videoName
+    init(config: CharacterConfig) {
+        self.config = config
+        self.runtimeState = CharacterRuntimeState(
+            isVisible: config.isEnabledByDefault,
+            selectedProvider: AgentProvider.provider(forCharacter: config.id)
+        )
+        self.positionProgress = config.startPosition
     }
 
     // MARK: - Setup
 
-    func setup() {
-        guard let videoURL = Bundle.main.url(forResource: videoName, withExtension: "mov") else {
-            print("Video \(videoName) not found")
-            return
+    @discardableResult
+    func setup() -> Bool {
+        guard let videoURL = Bundle.main.url(forResource: config.videoName, withExtension: "mov") else {
+            print("Video \(config.videoName) not found — character \(config.id) disabled")
+            runtimeState.sessionState = .failed("Asset missing")
+            return false
         }
 
         let asset = AVAsset(url: videoURL)
@@ -103,6 +111,7 @@ class WalkerCharacter {
 
         window.contentView = hostView
         window.orderFrontRegardless()
+        return true
     }
 
     // MARK: - Click Handling & Popover
@@ -137,9 +146,9 @@ class WalkerCharacter {
         terminalView?.inputField.isEditable = false
         terminalView?.inputField.placeholderString = ""
         let welcome = """
-        hey! we're bruce and jazz — your lil dock agents.
+        hey! we're bruce, jazz, and hilda — your lil dock agents.
 
-        click either of us to open a Claude AI chat. we'll walk around while you work and let you know when Claude's thinking.
+        click any of us to open an AI chat. we'll walk around while you work and let you know when Claude's thinking.
 
         check the menu bar icon (top right) for themes, sounds, and more options.
 
@@ -194,10 +203,16 @@ class WalkerCharacter {
         hideBubble()
 
         if session == nil {
-            let newSession = AgentProvider.current.createSession()
+            runtimeState.sessionState = .starting
+            let provider = runtimeState.selectedProvider
+            let newSession = provider.createSession(
+                systemPrompt: config.systemPrompt,
+                automationProfile: AutomationProfile.current
+            )
             session = newSession
             wireSession(newSession)
             newSession.start()
+            runtimeState.sessionState = .ready
         }
 
         if popoverWindow == nil {
@@ -261,6 +276,40 @@ class WalkerCharacter {
 
         let delay = Double.random(in: 2.0...5.0)
         pauseEndTime = CACurrentMediaTime() + delay
+    }
+
+    func switchProvider(to provider: AgentProvider) {
+        guard provider != runtimeState.selectedProvider else { return }
+        AgentProvider.setProvider(provider, forCharacter: config.id)
+        runtimeState.sessionState = .stopping
+        session?.terminate()
+        session = nil
+        runtimeState.sessionGeneration = UUID()
+        runtimeState.selectedProvider = provider
+        if isIdleForPopover {
+            closePopover()
+        }
+        popoverWindow?.orderOut(nil)
+        popoverWindow = nil
+        terminalView = nil
+        thinkingBubbleWindow?.orderOut(nil)
+        thinkingBubbleWindow = nil
+        runtimeState.sessionState = .idle
+    }
+
+    func restartSession() {
+        session?.terminate()
+        session = nil
+        runtimeState.sessionGeneration = UUID()
+        if isIdleForPopover {
+            closePopover()
+        }
+        popoverWindow?.orderOut(nil)
+        popoverWindow = nil
+        terminalView = nil
+        thinkingBubbleWindow?.orderOut(nil)
+        thinkingBubbleWindow = nil
+        runtimeState.sessionState = .idle
     }
 
     private func removeEventMonitors() {
@@ -336,35 +385,46 @@ class WalkerCharacter {
         terminalView = terminal
     }
 
-    private func wireSession(_ session: any AgentSession, providerName: String = AgentProvider.current.displayName) {
+    private func wireSession(_ session: any AgentSession, providerName: String? = nil) {
+        let name = providerName ?? runtimeState.selectedProvider.displayName
+        let generation = runtimeState.sessionGeneration
+
         session.onText = { [weak self] text in
-            self?.currentStreamingText += text
-            self?.terminalView?.appendStreamingText(text)
+            guard let self = self, self.runtimeState.sessionGeneration == generation else { return }
+            self.runtimeState.sessionState = .streaming
+            self.currentStreamingText += text
+            self.terminalView?.appendStreamingText(text)
         }
 
         session.onTurnComplete = { [weak self] in
-            self?.terminalView?.endStreaming()
-            self?.playCompletionSound()
-            self?.showCompletionBubble()
+            guard let self = self, self.runtimeState.sessionGeneration == generation else { return }
+            self.runtimeState.sessionState = .ready
+            self.terminalView?.endStreaming()
+            self.playCompletionSound()
+            self.showCompletionBubble()
         }
 
         session.onError = { [weak self] text in
-            self?.terminalView?.appendError(text)
+            guard let self = self, self.runtimeState.sessionGeneration == generation else { return }
+            self.runtimeState.sessionState = .failed(text)
+            self.terminalView?.appendError(text)
         }
 
         session.onToolUse = { [weak self] toolName, input in
-            guard let self = self else { return }
+            guard let self = self, self.runtimeState.sessionGeneration == generation else { return }
             let summary = self.formatToolInput(input)
             self.terminalView?.appendToolUse(toolName: toolName, summary: summary)
         }
 
         session.onToolResult = { [weak self] summary, isError in
-            self?.terminalView?.appendToolResult(summary: summary, isError: isError)
+            guard let self = self, self.runtimeState.sessionGeneration == generation else { return }
+            self.terminalView?.appendToolResult(summary: summary, isError: isError)
         }
 
         session.onProcessExit = { [weak self] in
-            self?.terminalView?.endStreaming()
-            self?.terminalView?.appendError("\(providerName) session ended.")
+            guard let self = self, self.runtimeState.sessionGeneration == generation else { return }
+            self.terminalView?.endStreaming()
+            self.terminalView?.appendError("\(name) session ended.")
         }
     }
 
