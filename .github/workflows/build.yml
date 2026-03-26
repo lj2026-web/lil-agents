@@ -1,0 +1,13 @@
+name: Build
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+      - name: Resolve packages
+        run: xcodebuild -resolvePackageDependencies -project lil-agents.xcodeproj -scheme LilAgents
+      - name: Build
+        run: xcodebuild build -project lil-agents.xcodeproj -scheme LilAgents -destination 'platform=macOS' CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO
