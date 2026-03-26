@@ -37,33 +37,70 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let menu = NSMenu()
 
-        let char1Item = NSMenuItem(title: "Bruce", action: #selector(toggleChar1), keyEquivalent: "1")
-        char1Item.state = .on
-        menu.addItem(char1Item)
+        // Character submenus (built dynamically)
+        if let characters = controller?.characters {
+            for (index, char) in characters.enumerated() {
+                let charItem = NSMenuItem(title: char.config.displayName, action: nil, keyEquivalent: index < 9 ? "\(index + 1)" : "")
+                let charMenu = NSMenu()
 
-        let char2Item = NSMenuItem(title: "Jazz", action: #selector(toggleChar2), keyEquivalent: "2")
-        char2Item.state = .on
-        menu.addItem(char2Item)
+                // Show/Hide toggle
+                let toggleItem = NSMenuItem(title: "Show/Hide", action: #selector(toggleCharacter(_:)), keyEquivalent: "")
+                toggleItem.representedObject = char
+                toggleItem.state = char.window?.isVisible == true ? .on : .off
+                charMenu.addItem(toggleItem)
+
+                // Status line (non-actionable)
+                let statusText: String
+                switch char.runtimeState.sessionState {
+                case .idle:       statusText = "Status: Idle"
+                case .starting:   statusText = "Status: Starting"
+                case .ready:      statusText = "Status: Ready"
+                case .streaming:  statusText = "Status: Streaming"
+                case .stopping:   statusText = "Status: Stopping"
+                case .failed(let msg):
+                    statusText = msg == "Asset missing" ? "Status: Asset Missing" : "Status: Failed"
+                case .providerUnavailable:
+                    statusText = "Status: Provider Unavailable"
+                }
+                let statusMenuItem = NSMenuItem(title: statusText, action: nil, keyEquivalent: "")
+                statusMenuItem.isEnabled = false
+                charMenu.addItem(statusMenuItem)
+
+                charMenu.addItem(NSMenuItem.separator())
+
+                // Provider selection
+                for provider in AgentProvider.allCases {
+                    let providerItem = NSMenuItem(title: provider.displayName, action: #selector(switchCharacterProvider(_:)), keyEquivalent: "")
+                    providerItem.representedObject = ["character": char, "provider": provider] as [String: Any]
+                    providerItem.state = char.runtimeState.selectedProvider == provider ? .on : .off
+                    charMenu.addItem(providerItem)
+                }
+
+                charItem.submenu = charMenu
+                menu.addItem(charItem)
+            }
+        }
 
         menu.addItem(NSMenuItem.separator())
 
+        // Security submenu
+        let securityItem = NSMenuItem(title: "Security", action: nil, keyEquivalent: "")
+        let securityMenu = NSMenu()
+        for profile in AutomationProfile.allCases {
+            let item = NSMenuItem(title: profile.displayName, action: #selector(switchAutomationProfile(_:)), keyEquivalent: "")
+            item.representedObject = profile
+            item.state = profile == AutomationProfile.current ? .on : .off
+            securityMenu.addItem(item)
+        }
+        securityItem.submenu = securityMenu
+        menu.addItem(securityItem)
+
+        // Sounds
         let soundItem = NSMenuItem(title: "Sounds", action: #selector(toggleSounds(_:)), keyEquivalent: "")
-        soundItem.state = .on
+        soundItem.state = WalkerCharacter.soundsEnabled ? .on : .off
         menu.addItem(soundItem)
 
-        // Provider submenu
-        let providerItem = NSMenuItem(title: "Provider", action: nil, keyEquivalent: "")
-        let providerMenu = NSMenu()
-        for (i, provider) in AgentProvider.allCases.enumerated() {
-            let item = NSMenuItem(title: provider.displayName, action: #selector(switchProvider(_:)), keyEquivalent: "")
-            item.tag = i
-            item.state = provider == AgentProvider.current ? .on : .off
-            providerMenu.addItem(item)
-        }
-        providerItem.submenu = providerMenu
-        menu.addItem(providerItem)
-
-        // Theme submenu
+        // Theme submenu (unchanged logic)
         let themeItem = NSMenuItem(title: "Style", action: nil, keyEquivalent: "")
         let themeMenu = NSMenu()
         for (i, theme) in PopoverTheme.allThemes.enumerated() {
@@ -75,7 +112,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         themeItem.submenu = themeMenu
         menu.addItem(themeItem)
 
-        // Display submenu
+        // Display submenu (unchanged logic)
         let displayItem = NSMenuItem(title: "Display", action: nil, keyEquivalent: "")
         let displayMenu = NSMenu()
         displayMenu.delegate = self
@@ -85,8 +122,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         displayMenu.addItem(autoItem)
         displayMenu.addItem(NSMenuItem.separator())
         for (i, screen) in NSScreen.screens.enumerated() {
-            let name = screen.localizedName
-            let item = NSMenuItem(title: name, action: #selector(switchDisplay(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: screen.localizedName, action: #selector(switchDisplay(_:)), keyEquivalent: "")
             item.tag = i
             item.state = .off
             displayMenu.addItem(item)
@@ -142,34 +178,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc func switchProvider(_ sender: NSMenuItem) {
-        let idx = sender.tag
-        let allProviders = AgentProvider.allCases
-        guard idx < allProviders.count else { return }
-        AgentProvider.current = allProviders[idx]
-
-        if let providerMenu = sender.menu {
-            for item in providerMenu.items {
-                item.state = item.tag == idx ? .on : .off
-            }
-        }
-
-        // Terminate existing sessions and clear UI so title/placeholder update
-        controller?.characters.forEach { char in
-            char.session?.terminate()
-            char.session = nil
-            if char.isIdleForPopover {
-                char.closePopover()
-            }
-            // Always clear popover/bubble so they rebuild with new provider title/placeholder
-            char.popoverWindow?.orderOut(nil)
-            char.popoverWindow = nil
-            char.terminalView = nil
-            char.thinkingBubbleWindow?.orderOut(nil)
-            char.thinkingBubbleWindow = nil
-        }
-    }
-
     @objc func switchDisplay(_ sender: NSMenuItem) {
         let idx = sender.tag
         controller?.pinnedScreenIndex = idx
@@ -181,30 +189,65 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc func toggleChar1(_ sender: NSMenuItem) {
-        guard let chars = controller?.characters, chars.count > 0 else { return }
-        let char = chars[0]
+    @objc func toggleCharacter(_ sender: NSMenuItem) {
+        guard let char = sender.representedObject as? WalkerCharacter else { return }
         if char.window.isVisible {
             char.window.orderOut(nil)
             char.queuePlayer.pause()
+            char.runtimeState.isVisible = false
             sender.state = .off
         } else {
             char.window.orderFrontRegardless()
+            char.runtimeState.isVisible = true
             sender.state = .on
         }
     }
 
-    @objc func toggleChar2(_ sender: NSMenuItem) {
-        guard let chars = controller?.characters, chars.count > 1 else { return }
-        let char = chars[1]
-        if char.window.isVisible {
-            char.window.orderOut(nil)
-            char.queuePlayer.pause()
-            sender.state = .off
-        } else {
-            char.window.orderFrontRegardless()
-            sender.state = .on
+    @objc func switchCharacterProvider(_ sender: NSMenuItem) {
+        guard let info = sender.representedObject as? [String: Any],
+              let char = info["character"] as? WalkerCharacter,
+              let provider = info["provider"] as? AgentProvider else { return }
+
+        char.switchProvider(to: provider)
+
+        // Update checkmarks in submenu
+        if let charMenu = sender.menu {
+            for item in charMenu.items {
+                if let itemInfo = item.representedObject as? [String: Any],
+                   itemInfo["character"] as? WalkerCharacter === char {
+                    let itemProvider = itemInfo["provider"] as? AgentProvider
+                    item.state = itemProvider == provider ? .on : .off
+                }
+            }
         }
+    }
+
+    @objc func switchAutomationProfile(_ sender: NSMenuItem) {
+        guard let profile = sender.representedObject as? AutomationProfile else { return }
+
+        if profile == .unattended {
+            let alert = NSAlert()
+            alert.messageText = "Enable Unattended Mode?"
+            alert.informativeText = "This gives AI agents the highest level of autonomous execution. They can run commands and modify files without asking for confirmation."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "Enable")
+            alert.addButton(withTitle: "Cancel")
+            if alert.runModal() != .alertFirstButtonReturn {
+                return
+            }
+        }
+
+        AutomationProfile.current = profile
+
+        // Update checkmarks
+        if let securityMenu = sender.menu {
+            for item in securityMenu.items {
+                item.state = (item.representedObject as? AutomationProfile) == profile ? .on : .off
+            }
+        }
+
+        // Restart all active sessions with new profile
+        controller?.characters.forEach { $0.restartSession() }
     }
 
     @objc func toggleDebug(_ sender: NSMenuItem) {
