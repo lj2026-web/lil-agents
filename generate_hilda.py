@@ -47,8 +47,8 @@ def load_sprite_frames():
                 frame = frame.crop(bbox)
             frames.append(frame)
 
-    # Resize all frames to consistent height (~35% of video height)
-    target_h = int(HEIGHT * 0.35)
+    # Resize all frames to fill most of the video frame (like Bruce does)
+    target_h = int(HEIGHT * 0.85)
     resized = []
     for f in frames:
         scale = target_h / f.height
