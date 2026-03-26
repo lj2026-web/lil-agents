@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Generate walk-hilda-01.mov from a static Westie character image.
+"""Generate walk-hilda-01.mov from an 8-frame sprite sheet.
 
-Takes the ChatGPT-generated Westie PNG (already has alpha), resizes to 1080x1920,
-and creates a walk animation with subtle bounce and sway.
+Splits the 4x2 sprite sheet into 8 walking frames, cycles through them
+at 3 frames per sprite (for smooth 24fps playback), with subtle bounce.
 """
 
 import os
@@ -12,80 +12,86 @@ import tempfile
 from PIL import Image
 
 WIDTH, HEIGHT = 1080, 1920
-FPS = 24  # match Bruce/Jazz
-DURATION = 10  # seconds
+FPS = 24
+DURATION = 10
 TOTAL_FRAMES = FPS * DURATION
 
-SRC_IMAGE = "/Users/miairis/Downloads/ChatGPT Image 2026年3月26日 22_45_32.png"
+SPRITE_SHEET = "/Users/miairis/Downloads/ChatGPT Image 2026年3月26日 23_06_05.png"
+COLS, ROWS = 4, 2  # 8 frames total
 
 
-def prepare_character():
-    """Load image, clean alpha, resize for animation."""
-    print("Loading and processing character image...")
-    img = Image.open(SRC_IMAGE).convert('RGBA')
-    px = img.load()
-    w, h = img.size
+def load_sprite_frames():
+    """Split sprite sheet into individual walk cycle frames."""
+    print("Loading sprite sheet...")
+    sheet = Image.open(SPRITE_SHEET).convert('RGBA')
+    sw, sh = sheet.size
+    fw, fh = sw // COLS, sh // ROWS
+    print(f"Sheet: {sw}x{sh}, each frame: {fw}x{fh}")
 
-    # Clean: zero out RGB for fully/mostly transparent pixels to reduce file size
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if a < 10:
-                px[x, y] = (0, 0, 0, 0)
+    frames = []
+    for row in range(ROWS):
+        for col in range(COLS):
+            x0, y0 = col * fw, row * fh
+            frame = sheet.crop((x0, y0, x0 + fw, y0 + fh))
 
-    # Crop to bounding box of visible content
-    bbox = img.getbbox()
-    if bbox:
-        img = img.crop(bbox)
+            # Clean near-transparent pixels
+            px = frame.load()
+            for y in range(fh):
+                for x in range(fw):
+                    if px[x, y][3] < 10:
+                        px[x, y] = (0, 0, 0, 0)
 
-    # Target: character about 70% of 1920 height = 1344px
-    target_h = int(HEIGHT * 0.70)
-    scale = target_h / img.height
-    target_w = int(img.width * scale)
-    img = img.resize((target_w, target_h), Image.LANCZOS)
+            # Crop to visible content
+            bbox = frame.getbbox()
+            if bbox:
+                frame = frame.crop(bbox)
+            frames.append(frame)
 
-    print(f"Character size: {target_w}x{target_h}")
-    return img
+    # Resize all frames to consistent height (~35% of video height)
+    target_h = int(HEIGHT * 0.35)
+    resized = []
+    for f in frames:
+        scale = target_h / f.height
+        target_w = int(f.width * scale)
+        resized.append(f.resize((target_w, target_h), Image.LANCZOS))
+
+    print(f"Loaded {len(resized)} frames, target size ~{resized[0].width}x{target_h}")
+    return resized
 
 
-def generate_frame(char_img, frame_num):
-    """Generate a single animation frame with walk bounce."""
-    frame = Image.new('RGBA', (WIDTH, HEIGHT), (0, 0, 0, 255))  # black bg like Bruce
+def generate_frame(sprite_frames, frame_num):
+    """Generate a single video frame by cycling through sprite frames."""
+    frame = Image.new('RGBA', (WIDTH, HEIGHT), (0, 0, 0, 255))
 
-    # Walk cycle: one full cycle per second (24 frames at 24fps)
+    # Each sprite frame shows for 3 video frames = 8 sprites per cycle = 1 cycle/sec
+    sprite_idx = (frame_num // 3) % len(sprite_frames)
+    char_img = sprite_frames[sprite_idx]
+
+    # Subtle vertical bounce synced with walk cycle
     t = (frame_num % 24) / 24.0
+    bounce_y = int(math.sin(t * 2 * math.pi * 2) * 5)  # 2 bounces per cycle
 
-    # Vertical bounce
-    bounce_y = int(math.sin(t * 2 * math.pi) * 12)
+    # Center character in lower portion of frame
+    x = (WIDTH - char_img.width) // 2
+    y = HEIGHT - char_img.height - (HEIGHT // 8) + bounce_y
 
-    # Slight horizontal sway
-    sway_x = int(math.sin(t * 2 * math.pi) * 4)
-
-    # Slight tilt for liveliness
-    tilt = math.sin(t * 2 * math.pi) * 1.5
-    rotated = char_img.rotate(tilt, expand=True, resample=Image.BICUBIC)
-
-    # Center character, lower portion of frame
-    x = (WIDTH - rotated.width) // 2 + sway_x
-    y = HEIGHT - rotated.height - (HEIGHT // 8) + bounce_y
-
-    frame.paste(rotated, (x, y), rotated)
+    frame.paste(char_img, (x, y), char_img)
     return frame
 
 
 def main():
-    char_img = prepare_character()
+    sprite_frames = load_sprite_frames()
 
     outdir = tempfile.mkdtemp(prefix='hilda_frames_')
     print(f"Generating {TOTAL_FRAMES} frames to {outdir}...")
 
     for i in range(TOTAL_FRAMES):
-        frame = generate_frame(char_img, i)
+        frame = generate_frame(sprite_frames, i)
         frame.save(os.path.join(outdir, f'frame_{i:04d}.png'))
         if (i + 1) % 60 == 0:
             print(f"  {i + 1}/{TOTAL_FRAMES} frames")
 
-    print("Encoding to HEVC (matching Bruce/Jazz format)...")
+    print("Encoding to HEVC...")
     output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 'LilAgents', 'walk-hilda-01.mov')
 
