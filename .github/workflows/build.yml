@@ -10,4 +10,18 @@ jobs:
       - name: Resolve packages
         run: xcodebuild -resolvePackageDependencies -project lil-agents.xcodeproj -scheme LilAgents
       - name: Build
-        run: xcodebuild build -project lil-agents.xcodeproj -scheme LilAgents -destination 'platform=macOS' CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO
+        run: |
+          xcodebuild build -project lil-agents.xcodeproj -scheme LilAgents \
+            -destination 'platform=macOS' \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO
+      - name: Package app
+        run: |
+          APP_PATH=$(find build -name "lil agents.app" -type d | head -1)
+          ditto "$APP_PATH" "lil-agents.app"
+          ditto -c -k --sequesterRsrc "lil-agents.app" lil-agents.zip
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lil-agents-app
+          path: lil-agents.zip
