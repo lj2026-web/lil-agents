@@ -14,6 +14,7 @@ jobs:
           xcodebuild build -project lil-agents.xcodeproj -scheme LilAgents \
             -destination 'platform=macOS' \
             -derivedDataPath build \
+            ARCHS="x86_64 arm64" ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO
       - name: Package app
         run: |
