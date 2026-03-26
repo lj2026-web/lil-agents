@@ -67,7 +67,6 @@ class WalkerCharacter {
 
     // MARK: - Setup
 
-    @discardableResult
     func setup() -> Bool {
         guard let videoURL = Bundle.main.url(forResource: config.videoName, withExtension: "mov") else {
             print("Video \(config.videoName) not found — character \(config.id) disabled")
@@ -212,7 +211,6 @@ class WalkerCharacter {
             session = newSession
             wireSession(newSession)
             newSession.start()
-            runtimeState.sessionState = .ready
         }
 
         if popoverWindow == nil {
@@ -388,6 +386,11 @@ class WalkerCharacter {
     private func wireSession(_ session: any AgentSession, providerName: String? = nil) {
         let name = providerName ?? runtimeState.selectedProvider.displayName
         let generation = runtimeState.sessionGeneration
+
+        session.onSessionReady = { [weak self] in
+            guard let self = self, self.runtimeState.sessionGeneration == generation else { return }
+            self.runtimeState.sessionState = .ready
+        }
 
         session.onText = { [weak self] text in
             guard let self = self, self.runtimeState.sessionGeneration == generation else { return }

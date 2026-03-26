@@ -57,7 +57,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let menu = NSMenu()
+        menu.delegate = self
+        buildMenuItems(into: menu)
+        statusItem?.menu = menu
+    }
 
+    private func buildMenuItems(into menu: NSMenu) {
         // Character submenus (built dynamically)
         if let characters = controller?.characters {
             for (index, char) in characters.enumerated() {
@@ -161,8 +166,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q")
         menu.addItem(quitItem)
-
-        statusItem?.menu = menu
     }
 
     // MARK: - Menu Actions
@@ -292,4 +295,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-extension AppDelegate: NSMenuDelegate {}
+extension AppDelegate: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        // Only rebuild the top-level status bar menu, not submenus
+        guard menu == statusItem?.menu else { return }
+        menu.removeAllItems()
+        buildMenuItems(into: menu)
+    }
+}
