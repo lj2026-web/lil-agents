@@ -7,6 +7,7 @@ enum AgentProvider: String, CaseIterable {
 
     private static let defaultsKey = "selectedProvider"
 
+    /// Legacy: used only for V1→V2 migration. New code should use per-character provider via `provider(forCharacter:)`.
     static var current: AgentProvider {
         get {
             let raw = UserDefaults.standard.string(forKey: defaultsKey) ?? "claude"
