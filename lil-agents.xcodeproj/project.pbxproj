@@ -25,6 +25,7 @@
 		A10000010000000000000034 /* CopilotSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000033 /* CopilotSession.swift */; };
 		A10000010000000000000040 /* CharacterConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000040 /* CharacterConfig.swift */; };
 		A10000010000000000000041 /* CharacterRuntimeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000041 /* CharacterRuntimeState.swift */; };
+		A10000010000000000000042 /* walk-hilda-01.mov in Resources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000042 /* walk-hilda-01.mov */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -47,6 +48,7 @@
 		A10000020000000000000033 /* CopilotSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopilotSession.swift; sourceTree = "<group>"; };
 		A10000020000000000000040 /* CharacterConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterConfig.swift; sourceTree = "<group>"; };
 		A10000020000000000000041 /* CharacterRuntimeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterRuntimeState.swift; sourceTree = "<group>"; };
+		A10000020000000000000042 /* walk-hilda-01.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = "walk-hilda-01.mov"; sourceTree = "<group>"; };
 		A10000030000000000000001 /* lil agents.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "lil agents.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -88,6 +90,7 @@
 				A10000020000000000000041 /* CharacterRuntimeState.swift */,
 				A10000020000000000000002 /* walk-bruce-01.mov */,
 				A10000020000000000000005 /* walk-jazz-01.mov */,
+				A10000020000000000000042 /* walk-hilda-01.mov */,
 				A10000020000000000000007 /* Assets.xcassets */,
 				A10000020000000000000010 /* Sounds */,
 				A10000020000000000000003 /* Info.plist */,
@@ -170,6 +173,7 @@
 			files = (
 				A10000010000000000000002 /* walk-bruce-01.mov in Resources */,
 				A10000010000000000000003 /* walk-jazz-01.mov in Resources */,
+				A10000010000000000000042 /* walk-hilda-01.mov in Resources */,
 				A10000010000000000000005 /* Assets.xcassets in Resources */,
 				A10000010000000000000010 /* Sounds in Resources */,
 			);

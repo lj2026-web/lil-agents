@@ -62,7 +62,7 @@ extension CharacterConfig {
         displayName: "Hilda",
         videoName: "walk-hilda-01",
         characterColor: NSColor(red: 0.9, green: 0.88, blue: 0.85, alpha: 1.0),
-        yOffset: 0,
+        yOffset: -5,
         flipXOffset: 0,
         startPosition: 0.5,
         initialPauseRange: 4.0...8.0,
