@@ -13,6 +13,9 @@ struct CharacterConfig {
     let displayName: String
     let videoName: String
     let characterColor: NSColor
+    let videoWidth: CGFloat
+    let videoHeight: CGFloat
+    let displayHeight: CGFloat
     let yOffset: CGFloat
     let flipXOffset: CGFloat
     let startPosition: CGFloat
@@ -30,6 +33,9 @@ extension CharacterConfig {
         displayName: "Bruce",
         videoName: "walk-bruce-01",
         characterColor: NSColor(red: 0.4, green: 0.72, blue: 0.55, alpha: 1.0),
+        videoWidth: 1080,
+        videoHeight: 1920,
+        displayHeight: 200,
         yOffset: -3,
         flipXOffset: 0,
         startPosition: 0.3,
@@ -46,6 +52,9 @@ extension CharacterConfig {
         displayName: "Jazz",
         videoName: "walk-jazz-01",
         characterColor: NSColor(red: 1.0, green: 0.4, blue: 0.0, alpha: 1.0),
+        videoWidth: 1080,
+        videoHeight: 1920,
+        displayHeight: 200,
         yOffset: -7,
         flipXOffset: -9,
         startPosition: 0.7,
@@ -62,6 +71,9 @@ extension CharacterConfig {
         displayName: "Hilda",
         videoName: "walk-hilda-01",
         characterColor: NSColor(red: 0.9, green: 0.88, blue: 0.85, alpha: 1.0),
+        videoWidth: 800,
+        videoHeight: 600,
+        displayHeight: 120,
         yOffset: -5,
         flipXOffset: 0,
         startPosition: 0.5,

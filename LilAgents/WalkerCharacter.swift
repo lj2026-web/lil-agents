@@ -10,9 +10,9 @@ class WalkerCharacter {
     var queuePlayer: AVQueuePlayer!
     var looper: AVPlayerLooper!
 
-    let videoWidth: CGFloat = 1080
-    let videoHeight: CGFloat = 1920
-    let displayHeight: CGFloat = 200
+    var videoWidth: CGFloat { config.videoWidth }
+    var videoHeight: CGFloat { config.videoHeight }
+    var displayHeight: CGFloat { config.displayHeight }
     var displayWidth: CGFloat { displayHeight * (videoWidth / videoHeight) }
 
     // Walk timing derived from config

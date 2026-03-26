@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 from PIL import Image
 
-WIDTH, HEIGHT = 1080, 1920
+WIDTH, HEIGHT = 800, 600
 FPS = 24
 DURATION = 10
 TOTAL_FRAMES = FPS * DURATION
@@ -47,8 +47,8 @@ def load_sprite_frames():
                 frame = frame.crop(bbox)
             frames.append(frame)
 
-    # Resize all frames to fill most of the video frame (like Bruce does)
-    target_h = int(HEIGHT * 0.85)
+    # Resize all frames to fill ~90% of the video frame height
+    target_h = int(HEIGHT * 0.90)
     resized = []
     for f in frames:
         scale = target_h / f.height
@@ -71,9 +71,9 @@ def generate_frame(sprite_frames, frame_num):
     t = (frame_num % 24) / 24.0
     bounce_y = int(math.sin(t * 2 * math.pi * 2) * 5)  # 2 bounces per cycle
 
-    # Center character in lower portion of frame
+    # Center character near bottom of frame
     x = (WIDTH - char_img.width) // 2
-    y = HEIGHT - char_img.height - (HEIGHT // 8) + bounce_y
+    y = HEIGHT - char_img.height - 10 + bounce_y
 
     frame.paste(char_img, (x, y), char_img)
     return frame
