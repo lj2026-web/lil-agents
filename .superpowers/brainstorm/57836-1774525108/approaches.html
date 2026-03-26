@@ -1,0 +1,49 @@
+<h2>Lil Agents 改造方案</h2>
+<p class="subtitle">安全优化 + Hilda 西高地小狗 + 独立 Agent 绑定</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>轻量改造</h3>
+      <p><strong>安全：</strong>在现有菜单加一个 "Safe Mode / Full Auto" 开关，Safe Mode 下去掉危险 flag</p>
+      <p><strong>Hilda：</strong>直接在 LilAgentsController 里加第三个 WalkerCharacter，复用现有架构</p>
+      <p><strong>Agent 绑定：</strong>给每个角色加一个右键菜单，可以选择该角色使用哪个 AI 后端</p>
+      <p><strong>改动量：</strong>~6 个文件，最小侵入</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>改动最少，风险低</li><li>保持原有代码风格</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>菜单会变臃肿（3 角色 × 各自设置）</li><li>角色配置散落在多处</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>结构化改造（推荐）</h3>
+      <p><strong>安全：</strong>新增 <code>PermissionMode</code> enum（restricted / fullAuto），每个 Session 类根据模式决定 flag</p>
+      <p><strong>Hilda：</strong>引入 <code>CharacterConfig</code> 结构体，把角色定义（视频、颜色、偏移、走路参数、agent、人格）数据化</p>
+      <p><strong>Agent 绑定：</strong>每个 CharacterConfig 持有自己的 AgentProvider，菜单按角色分子菜单</p>
+      <p><strong>改动量：</strong>~8 个文件，中等重构</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>加第 4、5 个角色零额外成本</li><li>角色配置集中管理</li><li>菜单结构清晰</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>需要重构 Controller 和 AppDelegate</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>完整重构</h3>
+      <p><strong>安全：</strong>加沙箱、环境变量过滤、权限确认 UI</p>
+      <p><strong>Hilda：</strong>做一个角色编辑器，支持用户自己导入视频和配置</p>
+      <p><strong>Agent 绑定：</strong>完全插件化的 agent 系统</p>
+      <p><strong>改动量：</strong>大量新文件，大重构</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>最大灵活性</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>工程量大，偏离"好玩"的初衷</li><li>过度设计</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

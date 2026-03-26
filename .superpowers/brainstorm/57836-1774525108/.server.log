@@ -1,0 +1,4 @@
+{"type":"server-started","port":61327,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:61327","screen_dir":"/Users/miairis/杂/lil-agents/.superpowers/brainstorm/57836-1774525108"}
+{"type":"screen-added","file":"/Users/miairis/杂/lil-agents/.superpowers/brainstorm/57836-1774525108/approaches.html"}
+{"type":"screen-added","file":"/Users/miairis/杂/lil-agents/.superpowers/brainstorm/57836-1774525108/waiting.html"}
+{"type":"server-stopped","reason":"idle timeout"}

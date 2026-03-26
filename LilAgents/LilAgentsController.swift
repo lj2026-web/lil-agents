@@ -8,37 +8,14 @@ class LilAgentsController {
     private static let onboardingKey = "hasCompletedOnboarding"
 
     func start() {
-        let char1 = WalkerCharacter(videoName: "walk-bruce-01")
-        char1.accelStart = 3.0
-        char1.fullSpeedStart = 3.75
-        char1.decelStart = 8.0
-        char1.walkStop = 8.5
-        char1.walkAmountRange = 0.4...0.65
+        for config in CharacterConfig.allBuiltIn {
+            let char = WalkerCharacter(config: config)
+            if char.setup() {
+                char.pauseEndTime = CACurrentMediaTime() + Double.random(in: config.initialPauseRange)
+                characters.append(char)
+            }
+        }
 
-        let char2 = WalkerCharacter(videoName: "walk-jazz-01")
-        char2.accelStart = 3.9
-        char2.fullSpeedStart = 4.5
-        char2.decelStart = 8.0
-        char2.walkStop = 8.75
-        char2.walkAmountRange = 0.35...0.6
-        char1.yOffset = -3
-        char2.yOffset = -7
-        char1.characterColor = NSColor(red: 0.4, green: 0.72, blue: 0.55, alpha: 1.0)
-        char2.characterColor = NSColor(red: 1.0, green: 0.4, blue: 0.0, alpha: 1.0)
-
-        char1.flipXOffset = 0
-        char2.flipXOffset = -9
-
-        char1.positionProgress = 0.3
-        char2.positionProgress = 0.7
-
-        char1.pauseEndTime = CACurrentMediaTime() + Double.random(in: 0.5...2.0)
-        char2.pauseEndTime = CACurrentMediaTime() + Double.random(in: 8.0...14.0)
-
-        char1.setup()
-        char2.setup()
-
-        characters = [char1, char2]
         characters.forEach { $0.controller = self }
 
         setupDebugLine()
